@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aplikasi Kasir</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      color: #222;
+    }
+    header {
+      background: #2563eb;
+      color: white;
+      padding: 18px 24px;
+      font-size: 24px;
+      font-weight: bold;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 25px auto;
+      padding: 0 18px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 3px 12px rgba(0,0,0,.08);
+      margin-bottom: 20px;
+    }
+    h2 { margin-top: 0; }
+    input, select, button {
+      width: 100%;
+      padding: 11px;
+      border-radius: 7px;
+      border: 1px solid #d1d5db;
+      margin-top: 7px;
+      font-size: 14px;
+    }
+    button {
+      cursor: pointer;
+      border: none;
+      background: #2563eb;
+      color: white;
+      font-weight: bold;
+    }
+    button:hover { opacity: .9; }
+    .danger { background: #dc2626; }
+    .success { background: #16a34a; }
+    .secondary { background: #6b7280; }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .product-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 15px;
+    }
+    .product {
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .product h3 { margin: 0 0 7px; font-size: 16px; }
+    .price { color: #2563eb; font-weight: bold; }
+    .stock { font-size: 13px; color: #6b7280; margin: 6px 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      padding: 9px 6px;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: left;
+      font-size: 14px;
+    }
+    .total {
+      font-size: 21px;
+      font-weight: bold;
+      margin: 15px 0;
+    }
+    .receipt {
+      display: none;
+      white-space: pre-wrap;
+      border: 1px dashed #999;
+      padding: 15px;
+      margin-top: 15px;
+      font-family: monospace;
+      background: #fff;
+    }
+    @media (max-width: 800px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>KasirKu - Aplikasi Kasir</header>
+
+<div class="container">
+  <div class="grid">
+
+    <div>
+      <div class="card">
+        <h2>Data Barang</h2>
+
+        <div class="row">
+          <div>
+            <label>Nama Barang</label>
+            <input id="productName" type="text" placeholder="Contoh: Mie Instan">
+          </div>
+          <div>
+            <label>Harga</label>
+            <input id="productPrice" type="number" placeholder="Contoh: 3500">
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>Stok</label>
+            <input id="productStock" type="number" placeholder="Contoh: 20">
+          </div>
+          <div>
+            <label>Kategori</label>
+            <input id="productCategory" type="text" placeholder="Contoh: Makanan">
+          </div>
+        </div>
+
+        <button onclick="addProduct()">Tambah Barang</button>
+      </div>
+
+      <div class="card">
+        <h2>Pilih Barang</h2>
+        <input id="search" type="text" placeholder="Cari barang..." oninput="renderProducts()">
+        <div id="productList" class="product-list"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>Keranjang</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Barang</th>
+              <th>Qty</th>
+              <th>Harga</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="cartBody"></tbody>
+        </table>
+
+        <div class="row">
+          <div>
+            <label>Diskon (%)</label>
+            <input id="discount" type="number" value="0" min="0" max="100" oninput="updateCart()">
+          </div>
+          <div>
+            <label>Uang Bayar</label>
+            <input id="payment" type="number" placeholder="Masukkan pembayaran" oninput="updateCart()">
+          </div>
+        </div>
+
+        <div class="total">Total: <span id="total">Rp0</span></div>
+        <div>Kembalian: <strong id="change">Rp0</strong></div>
+
+        <button class="success" onclick="checkout()">Bayar & Cetak Struk</button>
+        <button class="danger" onclick="clearCart()">Kosongkan Keranjang</button>
+
+        <div id="receipt" class="receipt"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let products = JSON.parse(localStorage.getItem("products")) || [
+    { id: 1, name: "Mie Instan", price: 3500, stock: 20, category: "Makanan" },
+    { id: 2, name: "Air Mineral", price: 3000, stock: 15, category: "Minuman" },
+    { id: 3, name: "Roti", price: 5000, stock: 10, category: "Makanan" },
+    { id: 4, name: "Teh Botol", price: 4000, stock: 12, category: "Minuman" }
+  ];
+
+  let cart = [];
+
+  function rupiah(number) {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      maximumFractionDigits: 0
+    }).format(number || 0);
+  }
+
+  function saveProducts() {
+    localStorage.setItem("products", JSON.stringify(products));
+  }
+
+  function addProduct() {
+    const name = document.getElementById("productName").value.trim();
+    const price = Number(document.getElementById("productPrice").value);
+    const stock = Number(document.getElementById("productStock").value);
+    const category = document.getElementById("productCategory").value.trim();
+
+    if (!name || price <= 0 || stock < 0) {
+      alert("Nama, harga, dan stok harus diisi dengan benar.");
+      return;
+    }
+
+    products.push({
+      id: Date.now(),
+      name,
+      price,
+      stock,
+      category: category || "Umum"
+    });
+
+    saveProducts();
+    document.getElementById("productName").value = "";
+    document.getElementById("productPrice").value = "";
+    document.getElementById("productStock").value = "";
+    document.getElementById("productCategory").value = "";
+
+    renderProducts();
+  }
+
+  function renderProducts() {
+    const list = document.getElementById("productList");
+    const search = document.getElementById("search").value.toLowerCase();
+
+    const filtered = products.filter(p =>
+      p.name.toLowerCase().includes(search) ||
+      p.category.toLowerCase().includes(search)
+    );
+
+    list.innerHTML = "";
+
+    if (filtered.length === 0) {
+      list.innerHTML = "<p>Barang tidak ditemukan.</p>";
+      return;
+    }
+
+    filtered.forEach(p => {
+      list.innerHTML += `
+        <div class="product">
+          <h3>${escapeHtml(p.name)}</h3>
+          <div class="price">${rupiah(p.price)}</div>
+          <div class="stock">Stok: ${p.stock} | ${escapeHtml(p.category)}</div>
+          <button ${p.stock <= 0 ? "disabled" : ""} onclick="addToCart(${p.id})">
+            ${p.stock <= 0 ? "Stok Habis" : "Tambah ke Keranjang"}
+          </button>
+        </div>
+      `;
+    });
+  }
+
+  function addToCart(id) {
+    const product = products.find(p => p.id === id);
+    if (!product || product.stock <= 0) return;
+
+    const item = cart.find(i => i.id === id);
+
+    if (item) {
+      if (item.qty >= product.stock) {
+        alert("Jumlah melebihi stok.");
+        return;
+      }
+      item.qty++;
+    } else {
+      cart.push({ id: product.id, qty: 1 });
+    }
+
+    updateCart();
+  }
+
+  function changeQty(id, qty) {
+    const product = products.find(p => p.id === id);
+    const item = cart.find(i => i.id === id);
+    qty = Number(qty);
+
+    if (!item) return;
+
+    if (qty <= 0) {
+      removeFromCart(id);
+      return;
+    }
+
+    if (qty > product.stock) {
+      alert("Jumlah melebihi stok.");
+      item.qty = product.stock;
+    } else {
+      item.qty = qty;
+    }
+
+    updateCart();
+  }
+
+  function removeFromCart(id) {
+    cart = cart.filter(i => i.id !== id);
+    updateCart();
+  }
+
+  function updateCart() {
+    const body = document.getElementById("cartBody");
+    body.innerHTML = "";
+
+    let subtotal = 0;
+
+    cart.forEach(item => {
+      const product = products.find(p => p.id === item.id);
+      if (!product) return;
+
+      const itemTotal = product.price * item.qty;
+      subtotal += itemTotal;
+
+      body.innerHTML += `
+        <tr>
+          <td>${escapeHtml(product.name)}</td>
+          <td>
+            <input type="number" min="1" max="${product.stock}"
+              value="${item.qty}"
+              onchange="changeQty(${item.id}, this.value)"
+              style="width:65px">
+          </td>
+          <td>${rupiah(itemTotal)}</td>
+          <td>
+            <button class="danger" onclick="removeFromCart(${item.id})">Hapus</button>
+          </td>
+        </tr>
+      `;
+    });
+
+    const discountPercent = Number(document.getElementById("discount").value) || 0;
+    const discount = subtotal * discountPercent / 100;
+    const total = subtotal - discount;
+    const payment = Number(document.getElementById("payment").value) || 0;
+    const change = payment - total;
+
+    document.getElementById("total").textContent = rupiah(total);
+    document.getElementById("change").textContent = rupiah(change > 0 ? change : 0);
+  }
+
+  function checkout() {
+    if (cart.length === 0) {
+      alert("Keranjang masih kosong.");
+      return;
+    }
+
+    let subtotal = 0;
+
+    cart.forEach(item => {
+      const product = products.find(p => p.id === item.id);
+      subtotal += product.price * item.qty;
+    });
+
+    const discountPercent = Number(document.getElementById("discount").value) || 0;
+    const discount = subtotal * discountPercent / 100;
+    const total = subtotal - discount;
+    const payment = Number(document.getElementById("payment").value) || 0;
+
+    if (payment < total) {
+      alert("Uang pembayaran belum cukup.");
+      return;
+    }
+
+    cart.forEach(item => {
+      const product = products.find(p => p.id === item.id);
+      product.stock -= item.qty;
+    });
+
+    saveProducts();
+
+    let text = "========== KASIRKU ==========\n";
+    text += new Date().toLocaleString("id-ID") + "\n";
+    text += "------------------------------\n";
+
+    cart.forEach(item => {
+      const product = products.find(p => p.id === item.id);
+      text += `${product.name}\n`;
+      text += `${item.qty} x ${rupiah(product.price)} = ${rupiah(product.price * item.qty)}\n`;
+    });
+
+    text += "------------------------------\n";
+    text += `Subtotal : ${rupiah(subtotal)}\n`;
+    text += `Diskon   : ${discountPercent}% (${rupiah(discount)})\n`;
+    text += `TOTAL    : ${rupiah(total)}\n`;
+    text += `Bayar    : ${rupiah(payment)}\n`;
+    text += `Kembali  : ${rupiah(payment - total)}\n`;
+    text += "==============================\n";
+    text += "Terima kasih sudah berbelanja!";
+
+    const receipt = document.getElementById("receipt");
+    receipt.textContent = text;
+    receipt.style.display = "block";
+
+    cart = [];
+    document.getElementById("payment").value = "";
+    document.getElementById("discount").value = "0";
+    updateCart();
+    renderProducts();
+
+    setTimeout(() => window.print(), 300);
+  }
+
+  function clearCart() {
+    cart = [];
+    document.getElementById("payment").value = "";
+    document.getElementById("discount").value = "0";
+    document.getElementById("receipt").style.display = "none";
+    updateCart();
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  renderProducts();
+  updateCart();
+</script>
+
+</body>
+</html>
